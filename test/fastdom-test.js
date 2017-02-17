@@ -46,6 +46,26 @@ suite('fastdom', function() {
     });
   });
 
+  test('it calls writes after reads', function(done) {
+    var read1 = sinon.spy();
+    var write1 = sinon.spy();
+
+    fastdom.mutate(function(){
+      fastdom.measure(read1);
+      fastdom.mutate(write1);
+    });
+
+    // After the queue has been emptied
+    // check the callbacks were called
+    // in the correct order.
+    raf(function() {
+      raf(function() {
+        assert(read1.calledBefore(write1));
+        done();
+      });
+    });
+  });
+
   test('it calls a read in the same frame if scheduled inside a read callback', function(done) {
     var cb = sinon.spy();
 
