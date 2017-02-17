@@ -46,6 +46,24 @@ suite('fastdom', function() {
     });
   });
 
+  test('it should serialize reads', function(done) {
+    var read1 = sinon.spy();
+    var write1 = sinon.spy();
+
+    fastdom.measure(function(){
+      fastdom.measure(read1);
+      fastdom.mutate(write1);
+    });
+
+    // After the queue has been emptied
+    // check the callbacks were called
+    // in the correct order.
+    raf(function() {
+        assert(read1.calledBefore(write1));
+        done();
+    });
+  });
+
   test('it calls a read in the same frame if scheduled inside a read callback', function(done) {
     var cb = sinon.spy();
 
@@ -103,6 +121,26 @@ suite('fastdom', function() {
         done();
       }, this);
     }, this);
+  });
+
+  test('it calls a write in the *next* frame if scheduled inside a write callback after the read is scheduled', function(done) {
+    var read1 = sinon.spy();
+    var write1 = sinon.spy();
+
+    fastdom.mutate(function(){
+      fastdom.measure(read1);
+      fastdom.mutate(write1);
+    });
+
+    // After the queue has been emptied
+    // check the callbacks were called
+    // in the correct order.
+    raf(function() {
+      raf(function() {
+        assert(read1.calledBefore(write1));
+        done();
+      });
+    });
   });
 
   test('it does not request a new frame when a write is requested inside a nested read', function(done) {

@@ -41,6 +41,7 @@ function FastDom() {
   self.reads = [];
   self.writes = [];
   self.raf = raf.bind(win); // test hook
+  self.runsWriteTasks = false;
   debug('initialized', self);
 }
 
@@ -58,6 +59,13 @@ FastDom.prototype = {
     debug('measure');
     var task = !ctx ? fn : fn.bind(ctx);
     this.reads.push(task);
+    // prevent writes before reads
+    if (this.runsWriteTasks &&
+        (!this.writes.length || this.writes[this.writes.length - 1])) {
+      // push the empty object to the writes queue
+      // to brake the writes tasks execution loop until the next frame
+      this.writes.push(null);
+    }
     scheduleFlush(this);
     return task;
   },
@@ -174,13 +182,17 @@ function flush(fastdom) {
   var reads = fastdom.reads;
   var error;
 
+  fastdom.runsWriteTasks = false;
+
   try {
     debug('flushing reads', reads.length);
     runTasks(reads);
+    fastdom.runsWriteTasks = true;
     debug('flushing writes', writes.length);
     runTasks(writes);
   } catch (e) { error = e; }
 
+  fastdom.runsWriteTasks = false;
   fastdom.scheduled = false;
 
   // If the batch errored we may still have tasks queued
